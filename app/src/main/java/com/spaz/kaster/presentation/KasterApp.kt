@@ -8,6 +8,7 @@ import com.spaz.kaster.presentation.screens.home.HomeScreen
 import com.spaz.kaster.presentation.screens.player.VideoPlayerScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.spaz.kaster.presentation.screens.player.CastRemoteScreen
 
 @Composable
 fun KasterApp() {
@@ -34,6 +35,11 @@ fun KasterApp() {
                 videoUri = uri,
                 videoName = name
             )
+        }
+        composable(
+            route = "cast_remote",
+        ) {
+            CastRemoteScreen()
         }
     }
 } 

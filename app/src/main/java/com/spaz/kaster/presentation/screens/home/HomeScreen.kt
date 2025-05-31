@@ -4,6 +4,8 @@ import android.Manifest
 import android.graphics.Bitmap
 import android.os.Build
 import android.util.Size
+import android.view.ContextThemeWrapper
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -23,13 +25,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -48,11 +48,16 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.mediarouter.app.MediaRouteButton
 import androidx.navigation.NavController
+import com.google.android.gms.cast.framework.CastButtonFactory
+import com.google.android.gms.cast.framework.CastContext
+import androidx.lifecycle.compose.LocalLifecycleOwner as axComposeLocalLifecycleOwner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,7 +66,15 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleOwner = axComposeLocalLifecycleOwner.current
+    val context = LocalContext.current
+    var castContext by remember { mutableStateOf<CastContext?>(null) }
+
+    // Inicializar CastContext solo una vez
+    LaunchedEffect(Unit) {
+        castContext = CastContext.getSharedInstance(context)
+        viewModel.setCastContext(context)
+    }
 
     // Recargar videos al volver a la pantalla
     DisposableEffect(lifecycleOwner) {
@@ -88,15 +101,20 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("Kaster") },
                 actions = {
-                    if (uiState.isCastAvailable) {
-                        IconButton(onClick = { /* TODO: Implementar selección de dispositivo Cast */
-
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Cast,
-                                contentDescription = "Transmitir"
-                            )
-                        }
+                    // Botón de Cast
+                    if (castContext != null) {
+                        AndroidView(
+                            factory = { context ->
+                                val themedContext = ContextThemeWrapper(
+                                    context,
+                                    androidx.appcompat.R.style.Theme_AppCompat_DayNight_NoActionBar
+                                )
+                                MediaRouteButton(themedContext).apply {
+                                    CastButtonFactory.setUpMediaRouteButton(themedContext, this)
+                                }
+                            },
+                            modifier = Modifier
+                        )
                     }
                 }
             )
@@ -129,7 +147,17 @@ fun HomeScreen(
                     VideoList(
                         videos = uiState.videos,
                         onVideoClick = { video ->
-                            navController.navigate("player?uri=${video.path}&name=${video.name}")
+                            if (uiState.isCastAvailable) {
+                                viewModel.transmitVideoToCast(video)
+                                Toast.makeText(
+                                    context,
+                                    "Transmitiendo a Chromecast...",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                navController.navigate("cast_remote")
+                            } else {
+                                navController.navigate("player?uri=${video.path}&name=${video.name}")
+                            }
                         }
                     )
                 }
@@ -204,13 +232,17 @@ private fun VideoItem(
     LaunchedEffect(video.path) {
         try {
             val bitmap = context.contentResolver.loadThumbnail(
-                android.net.Uri.parse(video.path),
+                video.path.toUri(),
                 Size(120, 120),
                 null
             )
+
             thumbnailBitmap = bitmap
         } catch (e: Exception) {
             thumbnailBitmap = null
+
+            Toast.makeText(context, e.message, Toast.LENGTH_SHORT)
+                .show()
         }
     }
 

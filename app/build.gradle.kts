@@ -80,6 +80,9 @@ dependencies {
     // Coil para Compose (cargar thumbnails)
     implementation(libs.coil.compose)
     
+    // AppCompat
+    implementation(libs.androidx.appcompat)
+    
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -88,4 +91,7 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // NanoHTTPD
+    implementation(libs.nanohttpd)
 }
