@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.Kaster" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/kaster_primary_dark</item>
+        <item name="colorPrimaryDark">@color/kaster_primary_dark</item>
+        <item name="colorAccent">@color/teal_200</item>
+        <item name="android:windowBackground">@color/kaster_primary_dark</item>
+    </style>
+</resources> 
