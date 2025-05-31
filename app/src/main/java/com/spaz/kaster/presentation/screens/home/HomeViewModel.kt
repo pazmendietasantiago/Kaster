@@ -72,6 +72,7 @@ class HomeViewModel @Inject constructor(
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
                 val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
                 val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn)
                     val name = cursor.getString(nameColumn)
@@ -80,43 +81,19 @@ class HomeViewModel @Inject constructor(
                     val contentUri: Uri = ContentUris.withAppendedId(
                         MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id
                     )
-                    // Intentar obtener la miniatura (thumbnail)
-                    val thumbnailUri = getThumbnailUri(id)
                     videoList.add(
                         Video(
                             id = id,
                             name = name,
                             path = contentUri.toString(),
                             duration = duration,
-                            thumbnail = thumbnailUri?.toString()
+                            thumbnail = null
                         )
                     )
                 }
             }
             _uiState.update { it.copy(videos = videoList) }
         }
-    }
-
-    // Obtener la URI de la miniatura del video
-    private fun getThumbnailUri(videoId: Long): Uri? {
-        val projection = arrayOf(MediaStore.Video.Thumbnails.DATA)
-        val selection = "${MediaStore.Video.Thumbnails.VIDEO_ID}=?"
-        val selectionArgs = arrayOf(videoId.toString())
-        val cursor = context.contentResolver.query(
-            MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI,
-            projection,
-            selection,
-            selectionArgs,
-            null
-        )
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Thumbnails.DATA)
-                val path = it.getString(dataColumn)
-                return Uri.parse("file://$path")
-            }
-        }
-        return null
     }
 
     private fun formatDuration(durationMs: Long): String {
@@ -131,6 +108,10 @@ class HomeViewModel @Inject constructor(
         if (granted) {
             loadVideos()
         }
+    }
+
+    fun reloadVideos() {
+        loadVideos()
     }
 }
 
