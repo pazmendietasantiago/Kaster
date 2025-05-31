@@ -66,19 +66,19 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     
     // Media3
-    implementation("androidx.media3:media3-exoplayer:1.2.1")
-    implementation("androidx.media3:media3-ui:1.2.1")
-    implementation("androidx.media3:media3-session:1.2.1")
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+    implementation(libs.androidx.media3.session)
     
     // Google Cast
-    implementation("com.google.android.gms:play-services-cast-framework:21.4.0")
+    implementation(libs.play.services.cast.framework)
     
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
     
     // Coil para Compose (cargar thumbnails)
-    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation(libs.coil.compose)
     
     // Testing
     testImplementation(libs.junit)
