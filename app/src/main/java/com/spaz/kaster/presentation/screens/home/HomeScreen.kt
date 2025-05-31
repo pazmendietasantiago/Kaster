@@ -24,14 +24,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -47,7 +54,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -57,6 +67,9 @@ import androidx.mediarouter.app.MediaRouteButton
 import androidx.navigation.NavController
 import com.google.android.gms.cast.framework.CastButtonFactory
 import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.CastSession
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
+import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.LocalLifecycleOwner as axComposeLocalLifecycleOwner
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +82,12 @@ fun HomeScreen(
     val lifecycleOwner = axComposeLocalLifecycleOwner.current
     val context = LocalContext.current
     var castContext by remember { mutableStateOf<CastContext?>(null) }
+    val session: CastSession? = castContext?.sessionManager?.currentCastSession
+    val remoteMediaClient: RemoteMediaClient? = session?.remoteMediaClient
+    var miniTitle by remember { mutableStateOf("") }
+    var miniIsPlaying by remember { mutableStateOf(false) }
+    var miniDuration by remember { mutableStateOf(0L) }
+    var miniPosition by remember { mutableStateOf(0L) }
 
     // Inicializar CastContext solo una vez
     LaunchedEffect(Unit) {
@@ -94,6 +113,21 @@ fun HomeScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         viewModel.onPermissionResult(isGranted)
+    }
+
+    // Actualiza el mini reproductor periódicamente
+    LaunchedEffect(remoteMediaClient) {
+        while (true) {
+            remoteMediaClient?.let { client ->
+                miniTitle =
+                    client.mediaInfo?.metadata?.getString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE)
+                        ?: ""
+                miniIsPlaying = client.isPlaying
+                miniDuration = client.mediaStatus?.mediaInfo?.streamDuration ?: 0L
+                miniPosition = client.approximateStreamPosition
+            }
+            delay(1000)
+        }
     }
 
     Scaffold(
@@ -160,6 +194,65 @@ fun HomeScreen(
                             }
                         }
                     )
+                }
+            }
+            // Mini reproductor
+            if (uiState.isCastAvailable && remoteMediaClient != null && miniTitle.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .clickable { navController.navigate("cast_remote") },
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Cast,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = miniTitle,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Slider(
+                                value = if (miniDuration > 0) miniPosition / miniDuration.toFloat() else 0f,
+                                onValueChange = { value ->
+                                    val seekTo = (value * miniDuration).toLong()
+                                    val options =
+                                        com.google.android.gms.cast.MediaSeekOptions.Builder()
+                                            .setPosition(seekTo)
+                                            .build()
+                                    remoteMediaClient.seek(options)
+                                },
+                                modifier = Modifier.height(16.dp)
+                            )
+                        }
+                        IconButton(onClick = {
+                            if (miniIsPlaying) remoteMediaClient.pause() else remoteMediaClient.play()
+                        }) {
+                            Icon(
+                                imageVector = if (miniIsPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (miniIsPlaying) "Pausar" else "Reproducir",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
